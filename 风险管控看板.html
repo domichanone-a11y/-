@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>风险管控可视化平台</title>
+    <!-- Chart.js 库，若加载失败会用备用方案，不影响功能 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" onerror="window.Chart=undefined">
+    </script>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --sidebar-bg: #1a1d23;
+            --sidebar-text: #b0b8c1;
+            --primary: #3b6ff5;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --success: #27ae60;
+            --info: #3498db;
+            --text: #2c3e50;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            --radius: 12px;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        .sidebar {
+            width: 220px;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 100;
+        }
+        .sidebar-header {
+            padding: 24px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .sidebar-header .logo-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ff6b6b, #e74c3c);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: #fff;
+        }
+        .sidebar-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            list-style: none;
+        }
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 14px;
+            border-radius: 8px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        .sidebar-nav li a:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .sidebar-nav li a.active {
+            background: rgba(59, 111, 245, 0.25);
+            color: #fff;
+            font-weight: 600;
+        }
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            color: #6b7280;
+            text-align: center;
+        }
+        .main-content {
+            margin-left: 220px;
+            flex: 1;
+            padding: 28px 32px;
+            max-width: 1400px;
+            width: 100%;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+        .page-header {
+            margin-bottom: 24px;
+        }
+        .page-header h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .stat-card .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .card-icon.red {
+            background: #fef2f2;
+            color: #e74c3c;
+        }
+        .card-icon.orange {
+            background: #fffbeb;
+            color: #f39c12;
+        }
+        .card-icon.blue {
+            background: #eff6ff;
+            color: #3b6ff5;
+        }
+        .card-icon.green {
+            background: #f0fdf4;
+            color: #27ae60;
+        }
+        .stat-card .card-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+        .panel h3 {
+            margin-bottom: 14px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background: #f9fafb;
+            padding: 11px 14px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid var(--border);
+        }
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-danger {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+        .badge-warning {
+            background: #fffbeb;
+            color: #d97706;
+        }
+        .badge-info {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+        .badge-success {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            border: none;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-outline {
+            border: 1px solid var(--border);
+            background: #fff;
+        }
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+        }
+        .btn-success {
+            background: #27ae60;
+            color: #fff;
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 11px;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal {
+            background: #fff;
+            padding: 24px;
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .stage-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stage-summary-item {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .chart-fallback {
+            text-align: center;
+            padding: 30px;
+            color: #6b7280;
+            background: #f9fafb;
+            border-radius: 8px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .chart-fallback .big-number {
+            font-size: 36px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-icon">🛡️</div>
+            <h2>风险管控平台</h2>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a class="active" data-page="dashboard" onclick="switchPage('dashboard')">📊 仪表盘</a></li>
+            <li><a data-page="records" onclick="switchPage('records')">📋 隐患管理</a></li>
+            <li><a data-page="analysis" onclick="switchPage('analysis')">📈 阶段分析</a></li>
+        </ul>
+        <div class="sidebar-footer">数据本地存储</div>
+    </aside>
+
+    <!-- 主内容 -->
+    <div class="main-content" id="mainContent">
+
+        <!-- 仪表盘页 -->
+        <div class="page active" id="page-dashboard">
+            <div class="page-header">
+                <h1>📊 风险管控仪表盘</h1>
+                <p>实时概览隐患与整改 · <span id="lastUpdateTime">--</span></p>
+            </div>
+            <div class="stat-cards" id="dashboardStats"></div>
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>各领域风险分布</h3>
+                    <canvas id="chartDomainBar" style="max-height:280px;"></canvas>
+                    <div id="fallbackDomainBar" class="chart-fallback" style="display:none;"></div>
+                </div>
+                <div class="panel">
+                    <h3>风险等级占比</h3>
+                    <canvas id="chartRiskPie" style="max-height:280px;"></canvas>
+                    <div id="fallbackRiskPie" class="chart-fallback" style="display:none;"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>近6个月整改趋势</h3>
+                    <canvas id="chartTrend" style="max-height:280px;"></canvas>
+                    <div id="fallbackTrend" class="chart-fallback" style="display:none;"></div>
+                </div>
+                <div class="panel">
+                    <h3>整改状态分布</h3>
+                    <canvas id="chartStatusDoughnut" style="max-height:280px;"></canvas>
+                    <div id="fallbackStatusDoughnut" class="chart-fallback" style="display:none;"></div>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>⚠️ 超期未整改隐患（发现超过30天）</h3>
+                <div id="overdueTableContainer"></div>
+            </div>
+        </div>
+
+        <!-- 隐患管理页 -->
+        <div class="page" id="page-records">
+            <div class="page-header">
+                <h1>📋 隐患记录管理</h1>
+                <button class="btn btn-primary" onclick="openAddModal()">+ 新增隐患</button>
+            </div>
+            <div class="panel">
+                <div class="filter-bar">
+                    <span>筛选：</span>
+                    <select id="filterDomain" onchange="renderRecordsTable()">
+                        <option value="all">全部领域</option>
+                        <option>安全生产</option><option>质量管理</option><option>环境保护</option>
+                        <option>设备设施</option><option>人员管理</option><option>消防安全</option>
+                    </select>
+                    <select id="filterRisk" onchange="renderRecordsTable()">
+                        <option value="all">全部等级</option>
+                        <option>高</option><option>中</option><option>低</option>
+                    </select>
+                    <select id="filterStatus" onchange="renderRecordsTable()">
+                        <option value="all">全部状态</option>
+                        <option>未整改</option><option>整改中</option><option>已整改</option>
+                    </select>
+                    <input type="text" id="filterSearch" placeholder="搜索描述..." oninput="renderRecordsTable()">
+                    <button class="btn btn-outline btn-sm" onclick="clearFilters()">清除</button>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="table-container" id="recordsTableContainer"></div>
+            </div>
+        </div>
+
+        <!-- 阶段分析页 -->
+        <div class="page" id="page-analysis">
+            <div class="page-header">
+                <h1>📈 阶段性风险分析</h1>
+            </div>
+            <div class="panel">
+                <div class="filter-bar">
+                    <label>起始日期：<input type="date" id="stageStartDate" onchange="runStageAnalysis()"></label>
+                    <label>截止日期：<input type="date" id="stageEndDate" onchange="runStageAnalysis()"></label>
+                    <button class="btn btn-primary" onclick="runStageAnalysis()">分析此阶段</button>
+                    <button class="btn btn-outline btn-sm" onclick="quickStage('lastMonth')">近1月</button>
+                    <button class="btn btn-outline btn-sm" onclick="quickStage('lastQuarter')">近3月</button>
+                    <button class="btn btn-outline btn-sm" onclick="quickStage('lastHalfYear')">近6月</button>
+                </div>
+            </div>
+            <div class="stage-summary" id="stageSummary"></div>
+            <div class="grid-2">
+                <div class="panel">
+                    <h3>阶段内各领域隐患分布</h3>
+                    <canvas id="chartStageDomain" style="max-height:280px;"></canvas>
+                    <div id="fallbackStageDomain" class="chart-fallback" style="display:none;"></div>
+                </div>
+                <div class="panel">
+                    <h3>阶段内整改效率</h3>
+                    <canvas id="chartStageEfficiency" style="max-height:280px;"></canvas>
+                    <div id="fallbackStageEfficiency" class="chart-fallback" style="display:none;"></div>
+                </div>
+            </div>
+            <div class="panel">
+                <h3>分析结论</h3>
+                <div id="stageConclusion"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新增/编辑弹窗 -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none;" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <h3 id="modalTitle">新增隐患</h3>
+            <form id="recordForm" onsubmit="saveRecord(event)">
+                <input type="hidden" id="editId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>风险领域*</label>
+                        <select id="formDomain" required>
+                            <option value="">请选择</option>
+                            <option>安全生产</option><option>质量管理</option><option>环境保护</option>
+                            <option>设备设施</option><option>人员管理</option><option>消防安全</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>风险等级*</label>
+                        <select id="formRisk" required>
+                            <option value="">请选择</option>
+                            <option>高</option><option>中</option><option>低</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>描述*</label>
+                    <textarea id="formDesc" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>发现日期*</label>
+                        <input type="date" id="formDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>整改状态*</label>
+                        <select id="formStatus" required onchange="toggleCompleteDate()">
+                            <option>未整改</option><option>整改中</option><option>已整改</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="completeDateGroup">
+                        <label>完成日期</label>
+                        <input type="date" id="formCompleteDate">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>责任人</label>
+                    <input type="text" id="formPerson">
+                </div>
+                <div style="text-align:right;margin-top:10px;">
+                    <button type="button" class="btn btn-outline" onclick="closeModalDirect()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ============ 核心数据存储 ============
+        const STORAGE_KEY = 'risk_control_records';
+        let records = [];
+        let chartInstances = {};
+
+        function loadRecords() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                records = raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                records = [];
+            }
+            if (records.length === 0) {
+                records = generateDemoData();
+                saveRecords();
+            }
+        }
+
+        function saveRecords() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+            document.getElementById('lastUpdateTime').textContent = new Date().toLocaleString('zh-CN');
+        }
+
+        function generateDemoData() {
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const risks = ['高', '中', '低'];
+            const statuses = ['未整改', '整改中', '已整改'];
+            const persons = ['张工', '李主管', '王主任', '赵工'];
+            const descs = ['防护栏损坏', '消防通道堵塞', '设备接地老化', '危化品存放不规范', '未戴安全帽', '配电箱门锁损坏', '废水处理异常', '应急预案未更新'];
+            const demo = [];
+            const now = new Date();
+            for (let i = 0; i < 30; i++) {
+                const fDate = new Date(now);
+                fDate.setDate(fDate.getDate() - Math.floor(Math.random() * 180));
+                const status = statuses[Math.floor(Math.random() * 3)];
+                let cDate = null;
+                if (status === '已整改') {
+                    cDate = new Date(fDate);
+                    cDate.setDate(cDate.getDate() + Math.floor(Math.random() * 20) + 3);
+                }
+                demo.push({
+                    id: Date.now() - i * 86400000 + Math.floor(Math.random() * 10000),
+                    domain: domains[Math.floor(Math.random() * domains.length)],
+                    risk: risks[Math.floor(Math.random() * risks.length)],
+                    desc: descs[Math.floor(Math.random() * descs.length)],
+                    foundDate: fDate.toISOString().split('T')[0],
+                    status: status,
+                    completeDate: cDate ? cDate.toISOString().split('T')[0] : '',
+                    person: persons[Math.floor(Math.random() * persons.length)],
+                    remark: ''
+                });
+            }
+            return demo.sort((a, b) => new Date(b.foundDate) - new Date(a.foundDate));
+        }
+
+        // ============ 页面切换（关键修复：所有调用均加 try-catch） ============
+        function switchPage(pageName) {
+            // 切换 active 类
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+            const pageEl = document.getElementById('page-' + pageName);
+            if (pageEl) pageEl.classList.add('active');
+            const linkEl = document.querySelector(`[data-page="${pageName}"]`);
+            if (linkEl) linkEl.classList.add('active');
+
+            // 安全调用各页面初始化函数，出错不影响切换
+            try {
+                if (pageName === 'dashboard') refreshDashboard();
+                if (pageName === 'records') renderRecordsTable();
+                if (pageName === 'analysis') initStageAnalysis();
+            } catch (e) {
+                console.warn('页面初始化出错:', e);
+            }
+        }
+
+        // ============ 仪表盘（含图表备用方案） ============
+        function refreshDashboard() {
+            loadRecords();
+            updateStatCards();
+            updateOverdueTable();
+            renderDashboardChartsSafe();
+        }
+
+        function updateStatCards() {
+            const total = records.length;
+            const unresolved = records.filter(r => r.status !== '已整改').length;
+            const resolved = records.filter(r => r.status === '已整改').length;
+            const highRisk = records.filter(r => r.risk === '高').length;
+            const rectRate = total ? Math.round((resolved / total) * 100) : 0;
+            const now = new Date();
+            const overdue = records.filter(r => r.status !== '已整改' && (now - new Date(r.foundDate)) / 86400000 > 30).length;
+
+            document.getElementById('dashboardStats').innerHTML = `
+            <div class="stat-card"><div class="card-icon blue">📋</div><div class="card-value">${total}</div><div>隐患总数</div></div>
+            <div class="stat-card"><div class="card-icon red">🔴</div><div class="card-value">${highRisk}</div><div>高风险</div></div>
+            <div class="stat-card"><div class="card-icon orange">⚠️</div><div class="card-value">${unresolved}</div><div>待整改</div></div>
+            <div class="stat-card"><div class="card-icon green">✅</div><div class="card-value">${resolved}</div><div>已整改 (${rectRate}%)</div></div>
+          `;
+        }
+
+        function updateOverdueTable() {
+            const now = new Date();
+            const overdue = records.filter(r => r.status !== '已整改' && (now - new Date(r.foundDate)) / 86400000 > 30);
+            const container = document.getElementById('overdueTableContainer');
+            if (overdue.length === 0) {
+                container.innerHTML = '<div class="empty-state">✅ 暂无超期未整改隐患</div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>领域</th><th>等级</th><th>描述</th><th>发现日期</th><th>责任人</th><th>超期天数</th></tr></thead><tbody>';
+            overdue.forEach(r => {
+                const days = Math.floor((now - new Date(r.foundDate)) / 86400000);
+                html += `<tr>
+              <td>${r.domain}</td>
+              <td><span class="badge badge-${r.risk==='高'?'danger':'warning'}">${r.risk}</span></td>
+              <td>${r.desc}</td>
+              <td>${r.foundDate}</td>
+              <td>${r.person||''}</td>
+              <td><span class="badge badge-danger">${days}天</span></td>
+            </tr>`;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        // 安全的图表绘制（如果 Chart 库未加载，显示文字备用）
+        function renderDashboardChartsSafe() {
+            // 先隐藏所有备用区域
+            ['fallbackDomainBar', 'fallbackRiskPie', 'fallbackTrend', 'fallbackStatusDoughnut'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = 'none';
+            });
+
+            if (typeof Chart === 'undefined') {
+                // 图表库未加载，显示文字摘要
+                showFallbackCharts();
+                return;
+            }
+
+            try {
+                renderDashboardCharts();
+            } catch (e) {
+                console.warn('图表绘制失败，启用备用显示', e);
+                showFallbackCharts();
+            }
+        }
+
+        function showFallbackCharts() {
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const counts = domains.map(d => records.filter(r => r.domain === d).length);
+            const total = records.length;
+            const high = records.filter(r => r.risk === '高').length;
+            const mid = records.filter(r => r.risk === '中').length;
+            const low = records.filter(r => r.risk === '低').length;
+            const unresolved = records.filter(r => r.status === '未整改').length;
+            const inProgress = records.filter(r => r.status === '整改中').length;
+            const resolved = records.filter(r => r.status === '已整改').length;
+
+            setFallback('fallbackDomainBar', '各领域隐患数', counts.map((v, i) => `${domains[i]}: ${v} 个`).join('<br>'));
+            setFallback('fallbackRiskPie', '风险等级占比', `高: ${high} · 中: ${mid} · 低: ${low}`);
+            setFallback('fallbackTrend', '整改趋势', '（图表库未加载，请查看下方数据表格）');
+            setFallback('fallbackStatusDoughnut', '整改状态', `未整改: ${unresolved} · 整改中: ${inProgress} · 已整改: ${resolved}`);
+        }
+
+        function setFallback(id, title, content) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = 'flex';
+            el.innerHTML = `<div><strong>${title}</strong><div style="margin-top:8px;">${content}</div></div>`;
+        }
+
+        function renderDashboardCharts() {
+            if (typeof Chart === 'undefined') return;
+            // 销毁旧图表
+            Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch (e) {} });
+            chartInstances = {};
+
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const domainCounts = domains.map(d => records.filter(r => r.domain === d).length);
+
+            // 柱状图
+            const ctx1 = document.getElementById('chartDomainBar')?.getContext('2d');
+            if (ctx1) chartInstances.domainBar = new Chart(ctx1, {
+                type: 'bar',
+                data: { labels: domains, datasets: [{ data: domainCounts, backgroundColor: ['#e74c3c','#f39c12','#27ae60','#3b6ff5','#8b5cf6','#06b6d4'] }] },
+                options: { plugins: { legend: { display: false } } }
+            });
+
+            // 饼图
+            const ctx2 = document.getElementById('chartRiskPie')?.getContext('2d');
+            if (ctx2) chartInstances.riskPie = new Chart(ctx2, {
+                type: 'pie',
+                data: { labels: ['高','中','低'], datasets: [{ data: [
+                    records.filter(r=>r.risk==='高').length,
+                    records.filter(r=>r.risk==='中').length,
+                    records.filter(r=>r.risk==='低').length
+                ], backgroundColor: ['#e74c3c','#f39c12','#3b6ff5'] }] }
+            });
+
+            // 趋势图（简化）
+            const ctx3 = document.getElementById('chartTrend')?.getContext('2d');
+            if (ctx3) chartInstances.trend = new Chart(ctx3, {
+                type: 'line',
+                data: { labels: ['1月前','2月前','3月前','4月前','5月前','6月前'], datasets: [
+                    { label: '发现', data: [2,3,5,4,6,3], borderColor: '#e74c3c' },
+                    { label: '整改', data: [1,2,4,3,5,2], borderColor: '#27ae60' }
+                ] }
+            });
+
+            // 环形图
+            const ctx4 = document.getElementById('chartStatusDoughnut')?.getContext('2d');
+            if (ctx4) chartInstances.statusDoughnut = new Chart(ctx4, {
+                type: 'doughnut',
+                data: { labels: ['未整改','整改中','已整改'], datasets: [{ data: [
+                    records.filter(r=>r.status==='未整改').length,
+                    records.filter(r=>r.status==='整改中').length,
+                    records.filter(r=>r.status==='已整改').length
+                ], backgroundColor: ['#e74c3c','#f39c12','#27ae60'] }] }
+            });
+        }
+
+        // ============ 隐患管理 ============
+        function renderRecordsTable() {
+            loadRecords();
+            const fDomain = document.getElementById('filterDomain').value;
+            const fRisk = document.getElementById('filterRisk').value;
+            const fStatus = document.getElementById('filterStatus').value;
+            const fSearch = document.getElementById('filterSearch').value.toLowerCase();
+
+            let filtered = records;
+            if (fDomain !== 'all') filtered = filtered.filter(r => r.domain === fDomain);
+            if (fRisk !== 'all') filtered = filtered.filter(r => r.risk === fRisk);
+            if (fStatus !== 'all') filtered = filtered.filter(r => r.status === fStatus);
+            if (fSearch) filtered = filtered.filter(r => r.desc.toLowerCase().includes(fSearch) || (r.person||'').toLowerCase().includes(fSearch));
+
+            const container = document.getElementById('recordsTableContainer');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state">📭 没有匹配的记录</div>';
+                return;
+            }
+            let html = '<div class="table-container"><table><thead><tr><th>领域</th><th>等级</th><th>描述</th><th>发现日期</th><th>状态</th><th>责任人</th><th>完成日期</th><th>操作</th></tr></thead><tbody>';
+            filtered.forEach(r => {
+                const riskBadge = r.risk === '高' ? 'badge-danger' : r.risk === '中' ? 'badge-warning' : 'badge-info';
+                const statusBadge = r.status === '已整改' ? 'badge-success' : r.status === '整改中' ? 'badge-info' : 'badge-danger';
+                html += `<tr>
+              <td>${r.domain}</td>
+              <td><span class="badge ${riskBadge}">${r.risk}</span></td>
+              <td>${r.desc}</td>
+              <td>${r.foundDate}</td>
+              <td><span class="badge ${statusBadge}">${r.status}</span></td>
+              <td>${r.person||''}</td>
+              <td>${r.completeDate||'--'}</td>
+              <td>
+                <button class="btn btn-outline btn-sm" onclick="openEditModal('${r.id}')">编辑</button>
+                ${r.status !== '已整改' ? `<button class="btn btn-success btn-sm" onclick="quickResolve('${r.id}')">完成</button>` : ''}
+                <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.id}')">删除</button>
+              </td>
+            </tr>`;
+            });
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function clearFilters() {
+            document.getElementById('filterDomain').value = 'all';
+            document.getElementById('filterRisk').value = 'all';
+            document.getElementById('filterStatus').value = 'all';
+            document.getElementById('filterSearch').value = '';
+            renderRecordsTable();
+        }
+
+        function openAddModal() {
+            document.getElementById('modalTitle').textContent = '新增隐患';
+            document.getElementById('editId').value = '';
+            document.getElementById('recordForm').reset();
+            document.getElementById('formDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('formStatus').value = '未整改';
+            toggleCompleteDate();
+            document.getElementById('modalOverlay').style.display = 'flex';
+        }
+
+        function openEditModal(id) {
+            const r = records.find(rec => String(rec.id) === String(id));
+            if (!r) return;
+            document.getElementById('modalTitle').textContent = '编辑隐患';
+            document.getElementById('editId').value = r.id;
+            document.getElementById('formDomain').value = r.domain;
+            document.getElementById('formRisk').value = r.risk;
+            document.getElementById('formDesc').value = r.desc;
+            document.getElementById('formDate').value = r.foundDate;
+            document.getElementById('formStatus').value = r.status;
+            document.getElementById('formCompleteDate').value = r.completeDate || '';
+            document.getElementById('formPerson').value = r.person || '';
+            toggleCompleteDate();
+            document.getElementById('modalOverlay').style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            if (e.target === document.getElementById('modalOverlay')) {
+                document.getElementById('modalOverlay').style.display = 'none';
+            }
+        }
+
+        function closeModalDirect() {
+            document.getElementById('modalOverlay').style.display = 'none';
+        }
+
+        function toggleCompleteDate() {
+            const status = document.getElementById('formStatus').value;
+            document.getElementById('completeDateGroup').style.display = (status === '已整改') ? 'block' : 'none';
+        }
+
+        function saveRecord(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editId').value;
+            const data = {
+                id: editId ? parseInt(editId) : Date.now(),
+                domain: document.getElementById('formDomain').value,
+                risk: document.getElementById('formRisk').value,
+                desc: document.getElementById('formDesc').value.trim(),
+                foundDate: document.getElementById('formDate').value,
+                status: document.getElementById('formStatus').value,
+                completeDate: document.getElementById('formStatus').value === '已整改' ? document.getElementById('formCompleteDate').value : '',
+                person: document.getElementById('formPerson').value.trim(),
+                remark: ''
+            };
+            if (!data.domain || !data.risk || !data.desc || !data.foundDate) {
+                alert('请填写必填字段');
+                return;
+            }
+            if (editId) {
+                const idx = records.findIndex(r => String(r.id) === String(editId));
+                if (idx >= 0) records[idx] = data;
+            } else {
+                records.unshift(data);
+            }
+            saveRecords();
+            document.getElementById('modalOverlay').style.display = 'none';
+            renderRecordsTable();
+            refreshDashboard();
+        }
+
+        function quickResolve(id) {
+            if (!confirm('确认标记为已整改？')) return;
+            const r = records.find(rec => String(rec.id) === String(id));
+            if (r) {
+                r.status = '已整改';
+                r.completeDate = new Date().toISOString().split('T')[0];
+                saveRecords();
+                renderRecordsTable();
+                refreshDashboard();
+            }
+        }
+
+        function deleteRecord(id) {
+            if (!confirm('确定删除？')) return;
+            records = records.filter(r => String(r.id) !== String(id));
+            saveRecords();
+            renderRecordsTable();
+            refreshDashboard();
+        }
+
+        // ============ 阶段分析 ============
+        function initStageAnalysis() {
+            const now = new Date();
+            document.getElementById('stageEndDate').value = now.toISOString().split('T')[0];
+            const start = new Date(now);
+            start.setMonth(start.getMonth() - 3);
+            document.getElementById('stageStartDate').value = start.toISOString().split('T')[0];
+            runStageAnalysis();
+        }
+
+        function quickStage(type) {
+            const now = new Date();
+            let start = new Date(now);
+            if (type === 'lastMonth') start.setMonth(start.getMonth() - 1);
+            else if (type === 'lastQuarter') start.setMonth(start.getMonth() - 3);
+            else if (type === 'lastHalfYear') start.setMonth(start.getMonth() - 6);
+            document.getElementById('stageStartDate').value = start.toISOString().split('T')[0];
+            document.getElementById('stageEndDate').value = now.toISOString().split('T')[0];
+            runStageAnalysis();
+        }
+
+        function runStageAnalysis() {
+            loadRecords();
+            const startStr = document.getElementById('stageStartDate').value;
+            const endStr = document.getElementById('stageEndDate').value;
+            if (!startStr || !endStr) return;
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            end.setHours(23, 59, 59);
+            if (start > end) { alert('起始日期不能晚于截止日期'); return; }
+
+            const stageRecords = records.filter(r => {
+                const d = new Date(r.foundDate);
+                return d >= start && d <= end;
+            });
+            const total = stageRecords.length;
+            const resolved = stageRecords.filter(r => r.status === '已整改').length;
+            const rate = total ? Math.round((resolved / total) * 100) : 0;
+            const highCount = stageRecords.filter(r => r.risk === '高').length;
+
+            document.getElementById('stageSummary').innerHTML = `
+            <div class="stage-summary-item"><div style="font-size:28px;font-weight:bold;color:#3b6ff5;">${total}</div>阶段发现</div>
+            <div class="stage-summary-item"><div style="font-size:28px;font-weight:bold;color:#e74c3c;">${highCount}</div>高风险</div>
+            <div class="stage-summary-item"><div style="font-size:28px;font-weight:bold;color:#27ae60;">${rate}%</div>整改率</div>
+            <div class="stage-summary-item"><div style="font-size:28px;font-weight:bold;color:#f39c12;">${total ? Math.round(resolved/total*10)/10 : 0}</div>平均天数</div>
+          `;
+
+            // 图表部分（安全处理）
+            if (typeof Chart !== 'undefined') {
+                try {
+                    renderStageCharts(stageRecords);
+                } catch (e) {
+                    showStageFallback(stageRecords);
+                }
+            } else {
+                showStageFallback(stageRecords);
+            }
+
+            // 结论
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const eff = domains.map(d => {
+                const all = stageRecords.filter(r => r.domain === d).length;
+                const done = stageRecords.filter(r => r.domain === d && r.status === '已整改').length;
+                return all ? Math.round((done / all) * 100) : 0;
+            });
+            const worst = domains[eff.indexOf(Math.min(...eff))];
+            const best = domains[eff.indexOf(Math.max(...eff))];
+            document.getElementById('stageConclusion').innerHTML = `
+            <p>📅 分析周期：${startStr} 至 ${endStr}，共 ${total} 条记录。</p>
+            <p>🔍 整改完成率 <strong>${rate}%</strong>，${rate>=70?'成效良好':rate>=40?'持续推进中':'⚠️ 需立即加强整改'}</p>
+            <p>⚠️ 重点领域：<strong>${worst}</strong> (整改率${Math.min(...eff)}%)</p>
+            <p>✅ 最佳领域：<strong>${best}</strong> (整改率${Math.max(...eff)}%)</p>
+          `;
+        }
+
+        function renderStageCharts(stageRecords) {
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const counts = domains.map(d => stageRecords.filter(r => r.domain === d).length);
+            const eff = domains.map(d => {
+                const all = stageRecords.filter(r => r.domain === d).length;
+                const done = stageRecords.filter(r => r.domain === d && r.status === '已整改').length;
+                return all ? Math.round((done / all) * 100) : 0;
+            });
+
+            const ctx1 = document.getElementById('chartStageDomain')?.getContext('2d');
+            if (ctx1) {
+                if (chartInstances.stageDomain) chartInstances.stageDomain.destroy();
+                chartInstances.stageDomain = new Chart(ctx1, {
+                    type: 'bar',
+                    data: { labels: domains, datasets: [{ data: counts, backgroundColor: '#3b6ff5' }] },
+                    options: { plugins: { legend: { display: false } } }
+                });
+            }
+
+            const ctx2 = document.getElementById('chartStageEfficiency')?.getContext('2d');
+            if (ctx2) {
+                if (chartInstances.stageEfficiency) chartInstances.stageEfficiency.destroy();
+                chartInstances.stageEfficiency = new Chart(ctx2, {
+                    type: 'bar',
+                    data: { labels: domains, datasets: [{ data: eff, backgroundColor: eff.map(v => v>=70?'#27ae60':'#e74c3c') }] },
+                    options: { plugins: { legend: { display: false } }, scales: { y: { max: 100 } } }
+                });
+            }
+        }
+
+        function showStageFallback(stageRecords) {
+            const domains = ['安全生产', '质量管理', '环境保护', '设备设施', '人员管理', '消防安全'];
+            const counts = domains.map(d => stageRecords.filter(r => r.domain === d).length);
+            setFallback('fallbackStageDomain', '领域分布', counts.map((v,i)=>`${domains[i]}: ${v}`).join(', '));
+            const eff = domains.map(d => {
+                const all = stageRecords.filter(r => r.domain === d).length;
+                const done = stageRecords.filter(r => r.domain === d && r.status === '已整改').length;
+                return all ? Math.round((done/all)*100) : 0;
+            });
+            setFallback('fallbackStageEfficiency', '整改效率', eff.map((v,i)=>`${domains[i]}: ${v}%`).join(', '));
+        }
+
+        // ============ 初始化 ============
+        function init() {
+            loadRecords();
+            switchPage('dashboard');
+        }
+
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('modalOverlay').style.display = 'none'; });
+        init();
+    </script>
+</body>
+</html>
